@@ -1,0 +1,680 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<html>
+  <head>
+    <style type="text/css">
+    @media print {
+      body { }
+      p.img { text-align: center; page-break-inside: avoid }
+      img.CC { display: inline }
+    }
+    @media screen {
+      body { max-width: 800px; margin: auto }
+      p.img { text-align: center }
+      img.CC { display: inline }
+    }
+    p.date {
+      font-size: smaller;
+      margin: 0;
+    }
+    p.versionHistory {
+      color: gray
+    }
+    p.versionHistory a {
+      color: gray
+    }
+    p.ref {
+      text-indent: -2em;
+      padding-left: 2em;
+    }
+    p.fig {
+      text-align: left;
+    }
+    p.fig img, img.plot {
+      box-shadow: 10px 10px 20px;
+      margin-top: 10px;
+      margin-bottom: 20px;      
+    }
+  </style>
+  </head>
+  <body>
+    <h1>Luminance Masks in R Graphics</h1>
+    <p>
+      <span style="font-style: italic">by Paul Murrell</span>
+      <a href="http://orcid.org">
+        <img alt="" src="https://www.stat.auckland.ac.nz/~paul/ORCID/ORCiD.png" style="width: 16px; height: 16px; vertical-align: middle"/>
+      </a>
+      <span style="font-family: mono; font-size: small">
+        <a href="http://orcid.org/0000-0002-3224-8858">http://orcid.org/0000-0002-3224-8858</a>
+      </span>
+    </p>
+    <p class="date">
+    Version 1:  
+    <rcode echo="FALSE" results="asis"><![CDATA[
+cat(format(Sys.Date(), "%A %d %B %Y"))
+    ]]></rcode>
+  </p>
+    <rcode id="init" echo="FALSE" message="FALSE" results="hide"><![CDATA[
+opts_chunk$set(comment=" ", tidy=FALSE, 
+               dev="png", ## dev="svg",
+               dpi=96)
+options(width=100)
+## For wonky desktop set up
+options(bitmapType="cairo")
+  ]]></rcode>
+    <rcode echo="FALSE" message="FALSE"><![CDATA[
+    library(grid)
+  ]]></rcode>
+    <hr/>
+    <p><a rel="license" href="http://creativecommons.org/licenses/by/4.0/"><img class="CC" alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by/4.0/88x31.png"/></a><br/><span xmlns:dct="http://purl.org/dc/terms/" property="dct:title">This document</span>
+    by <span xmlns:cc="http://creativecommons.org/ns#" property="cc:attributionName">Paul
+    Murrell</span> is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by/4.0/">Creative
+    Commons Attribution 4.0 International License</a>.
+  </p>
+    <hr/>
+    <p>
+    This document describes an extension of the support for 
+    masks in the R graphics to allow luminance masks. 
+  </p>
+    <p>
+    These features are available in the development version of R 
+    (to become 4.2.0).
+  </p>
+    <p>
+    R users wanting to try out the new graphics features should start with
+    the <a href="#api">User API</a> Section, which provides a quick introduction
+    to the new R-level interface.
+  </p>
+    <p>
+    Maintainers of R packages that provide R graphics devices should
+    read the <a href="#device">Device API</a> Section, which provides a description of the
+    required changes to R graphics devices. 
+  </p>
+    <p>
+    Luminance masks are currently only available on the
+    <code>pdf()</code> graphics device.
+    Graphics devices from other R packages should
+    be reinstalled and will not produce the correct output until
+    (or unless)
+    the package maintainer adds support.
+  </p>
+    <div>
+      <h2>Table of Contents:</h2>
+      <ul style="list-style: none">
+        <li>
+          <a href="#intro">1. Introduction</a>
+        </li>
+        <li>
+          <a href="#api">2. User API</a>
+        </li>
+        <li>
+          <a href="#device">3. Device API</a>
+        </li>
+        <li>
+          <a href="#discussion">4. Discussion</a>
+        </li>
+        <li>
+          <a href="#requirements">5. Technical requirements</a>
+        </li>
+        <li>
+          <a href="#Resources">6. Resources</a>
+        </li>
+        <li>
+          <a href="#references">7. References</a>
+        </li>
+      </ul>
+    </div>
+    <h2>
+      <a name="intro">1. Introduction</a>
+    </h2>
+    <p>
+    Changes to the graphics engine in R 4.1.0 added support for
+    gradient and pattern fills, clipping paths, and masks 
+    (<a href="#murrell-definitions-2020">Murrell, 2020</a>).  
+    The following example demonstrates the use of a mask.
+  </p>
+    <p>
+    The drawing we will use the mask on is a simple piece of text
+    on a coloured background.  We will refer to this as the "test image".
+  </p>
+    <rcode fig.width="2" fig.height="1"><![CDATA[
+library(colorspace)
+bg <- rectGrob(gp=gpar(col=NA, fill=4))
+tg <- textGrob("masked", 
+               gp=gpar(cex=3, fontface="bold", col=darken(4, .7))) 
+testGrob <- gTree(children=gList(bg, tg))
+grid.group(testGrob)
+  ]]></rcode>
+    <p>
+    The mask is a circle with a semitransparent fill.
+    A thick green line is drawn first so that we can
+    see that the circle is semitransparent.
+  </p>
+    <rcode fig.width="2" fig.height="1"><![CDATA[
+alphaCircle <- circleGrob(gp=gpar(col=NA, fill=rgb(0,0,0,.5)))
+grid.segments(gp=gpar(col=3, lwd=20))
+grid.draw(alphaCircle)
+  ]]></rcode>
+    <p>
+    The following code enforces a mask based on the semitransparent circle
+    and then draws the test image.
+    This mask is called an "alpha" mask because the semitransparency
+    (alpha channel) of the mask dictates how the test image gets drawn.
+    In this case, where the circle overlaps the test image,
+    the test image becomes semitransparent because the circle is
+    semitransparent.  Outside of the mask, nothing
+    is drawn.
+  </p>
+    <rcode fig.width="2" fig.height="1"><![CDATA[
+grid.segments(gp=gpar(col=3, lwd=20))
+pushViewport(viewport(mask=alphaCircle))
+grid.group(testGrob)
+  ]]></rcode>
+    <p>
+    The following code shows a slightly more complex mask.  
+    This
+    time the mask is a circle with a semitransparent fill and 
+    a thick opaque border.
+  </p>
+    <rcode fig.width="2" fig.height="1"><![CDATA[
+solidCircle <- circleGrob(gp=gpar(col="black", lwd=20, fill=rgb(0,0,0,.5)))
+grid.segments(gp=gpar(col=3, lwd=20))
+grid.draw(solidCircle)
+  ]]></rcode>
+    <p>
+    The following code enforces this more complex mask and then draws the 
+    test image again.
+    This is also an alpha mask so the semitransparency of the
+    mask is transferred to the test image.
+    The result is similar to the previous example, 
+    except that, where the opaque circle border
+    overlaps the test image, the test image is drawn opaque.
+  </p>
+    <rcode fig.width="2" fig.height="1"><![CDATA[
+grid.segments(gp=gpar(col=3, lwd=20))
+pushViewport(viewport(mask=solidCircle))
+grid.group(testGrob)
+  ]]></rcode>
+    <p>
+    Some graphics languages, like Adobe Portable Document Format (PDF) 
+    (<a href="#PDF">Adobe Systems Incorporated, 2001</a>) 
+    and Cascading Style Sheets (CSS) (<a href="#CSS">Bos et al., 1998</a>) allow 
+    for another type of mask called a "luminance" mask.
+    In a luminance mask, the luminance (greyscale values) of the mask,
+    rather than the semitransparency of the mask,
+    dictates how other shapes will be drawn.
+  </p>
+    <p>
+    This document describes the extension of mask support in R graphics
+    to allow for luminance masks as well as alpha masks.
+  </p>
+    <h2>
+      <a name="api">2. User API</a>
+    </h2>
+    <p>
+    Since the release of R version 4.1.0, the <code>viewport()</code> function
+    in the 'grid' package has had a <code>mask</code> argument.
+    If the value of that argument is a 'grid' grob, that grob
+    is used as the basis for an alpha mask.
+  </p>
+    <p>
+    A new function, <code>as.mask()</code>, has been added so that
+    we can associate a grob with a mask type.  For example, the
+    following code defines a luminance mask that is based
+    on a circle with a grey fill and a thick white border.
+  </p>
+    <rcode><![CDATA[
+luminanceCircle <- circleGrob(gp=gpar(col="white", lwd=20, fill="grey50"))
+luminanceMask <- as.mask(luminanceCircle, type="luminance")
+  ]]></rcode>
+    <p>
+    The following code draws the circle that we are using as a luminance
+    mask.  This is quite different from the previous alpha mask
+    because it is completely opaque;  the green line drawn in the background
+    is <em>not</em> visible beneath the mask.
+  </p>
+    <rcode fig.width="2" fig.height="1"><![CDATA[
+grid.segments(gp=gpar(col=3, lwd=20))
+grid.draw(luminanceCircle)
+  ]]></rcode>
+    <p>
+    The <code>mask</code> argument to <code>viewport()</code> will now
+    accept an object created with <code>as.mask()</code> as well as
+    a simple grob.  
+    The following code pushes a viewport to enforce the luminance mask 
+    and then draws the test image that we have used before.
+  </p>
+    <rcode fig.keep="none" results="hide"><![CDATA[
+pdf("luminance-mask.pdf", width=2, height=1)
+grid.segments(gp=gpar(col=3, lwd=20))
+pushViewport(viewport(mask=luminanceMask))
+grid.group(testGrob)
+dev.off()
+  ]]></rcode>
+    <rcode echo="FALSE"><![CDATA[
+system("pdftoppm -png -rx 96 -ry 96 luminance-mask.pdf > luminance-mask.png")
+  ]]></rcode>
+    <p>
+      <img class="plot" src="luminance-mask.png"/>
+    </p>
+    <p>
+    The result is the same as the last alpha mask example,
+    but in this case the semitransparency of the text has been derived
+    from the greyscale values of the luminance mask.  Where the mask
+    is white, the test image is drawn opaque and, where the mask is grey,
+    the test image is drawn semitransparent.
+  </p>
+    <p>
+    The following code produces the same result as the first alpha
+    mask example, but using a luminance mask instead.
+    This time the mask is just a grey circle (with no border).
+  </p>
+    <rcode><![CDATA[
+luminanceCircle <- circleGrob(gp=gpar(col=NA, fill="grey50"))
+luminanceMask <- as.mask(luminanceCircle, type="luminance")
+  ]]></rcode>
+    <rcode fig.width="2" fig.height="1"><![CDATA[
+grid.segments(gp=gpar(col=3, lwd=20))
+grid.draw(luminanceCircle)
+  ]]></rcode>
+    <p>
+    The following code pushes a viewport to enforce the luminance mask 
+    and then draws the test image again.  
+    The result is the same as the first alpha mask example, but this
+    time the test image is semitransparent where it overlaps with the circle
+    because the circle is filled with grey.
+  </p>
+    <rcode fig.keep="none" results="hide"><![CDATA[
+pdf("luminance-mask-2.pdf", width=2, height=1)
+grid.segments(gp=gpar(col=3, lwd=20))
+pushViewport(viewport(mask=luminanceMask))
+grid.group(testGrob)
+dev.off()
+  ]]></rcode>
+    <rcode echo="FALSE"><![CDATA[
+system("pdftoppm -png -rx 96 -ry 96 luminance-mask-2.pdf > luminance-mask-2.png")
+  ]]></rcode>
+    <p>
+      <img class="plot" src="luminance-mask-2.png"/>
+    </p>
+    <h2>
+      <a name="device">3. Device API</a>
+    </h2>
+    <p>
+    There is no change required to graphics devices as a result of this 
+    change.  However, devices can now inspect the type of a mask
+    to check whether it is an alpha mask or a luminance mask.
+  </p>
+    <p>
+    The first argument to <code>dev-&gt;setMask()</code> is an R function
+    that defines the mask
+    (as before), but this function now has a <code>"type"</code> 
+    attribute.
+    The new <code>R_GE_maskType()</code> function, given the R function
+    that is passed in to <code>dev-&gt;setMask()</code>,
+    returns an integer representing the 
+    type of mask.  Integer constants
+    <code>R_GE_alphaMask</code> and <code>R_GE_luminanceMask</code>
+    are provided for devices
+    to switch between the two types of mask.
+  </p>
+    <h2>
+      <a name="discussion">4. Discussion</a>
+    </h2>
+    <p>
+    It is now possible to work with luminance masks 
+    (as well as alpha masks) in R graphics.  As with other 
+    recent expansions of the R graphics capabilities,
+    this hopefully allows users to produce images purely
+    in code rather than having to resort to manual, post-hoc editing
+    of an R plot in other GUI software.
+  </p>
+    <p>
+    One reason why luminance masks in particular
+    are useful is because it is sometimes
+    simpler to define a luminance mask than it is to define
+    an alpha mask.  For example, the following code defines a
+    luminance mask that consists of a circle filled in white
+    with a thick grey border and a thick, vertical, grey
+    line running through its centre.
+  </p>
+    <rcode><![CDATA[
+luminanceGrob <- gTree(children=gList(circleGrob(),
+                                      segmentsGrob(.5, 0, .5, 1)),
+                       gp=gpar(col="grey50", lwd=20, fill="white"))
+luminanceMask <- as.mask(luminanceGrob, type="luminance")    
+  ]]></rcode>
+    <rcode fig.width="2" fig.height="1"><![CDATA[
+grid.segments(gp=gpar(col=3, lwd=20))
+grid.draw(luminanceGrob)
+  ]]></rcode>
+    <p>
+    When we enforce this mask it 
+    produces semitransparency in all grey regions and 
+    opacity in all white regions, as shown below.
+  </p>
+    <rcode fig.keep="none" results="hide"><![CDATA[
+pdf("luminance-mask-3.pdf", width=2, height=1)
+grid.segments(gp=gpar(col=3, lwd=20))
+pushViewport(viewport(mask=luminanceMask))
+grid.group(testGrob)
+dev.off()
+  ]]></rcode>
+    <rcode echo="FALSE"><![CDATA[
+system("pdftoppm -png -rx 96 -ry 96 luminance-mask-3.pdf > luminance-mask-3.png")
+  ]]></rcode>
+    <p>
+      <img class="plot" src="luminance-mask-3.png"/>
+    </p>
+    <p>
+    Producing an equivalent alpha mask is difficult.
+    For example, in the naive approach below, we define a mask based on 
+    an opaque filled circle with a semitransparent 
+    thick border and a semitransparent vertical line on top.
+    Note that the important feature in an alpha mask is the
+    mask transparency;  an opaque red is equivalent to an opaque black
+    (we use red here because it makes it easier to see the semitransparent
+    border an line drawn on top).
+  </p>
+    <rcode fig.width="2" fig.height="1"><![CDATA[
+circle <- circleGrob(gp=gpar(col=NA, fill=2))
+border <- circleGrob(gp=gpar(col=rgb(0,0,0,.5), lwd=20, fill=NA))
+line <- segmentsGrob(.5, 0, .5, 1, gp=gpar(col=rgb(0,0,0,.5), lwd=20))
+alphaMask <- gTree(children=gList(circle, border, line))
+grid.segments(gp=gpar(col=3, lwd=20))
+grid.draw(alphaMask)
+  ]]></rcode>
+    <p>
+    If we use this mask on the test image, we get a very different result
+    compared to the previous luminance mask.
+    This alpha mask is opaque wherever the red circle is drawn and so the
+    test image is opaque wherever the red circle is drawn.
+    Only the parts of the semitransparent border that stick out past
+    the red circle result in a semitransparent test image.
+    In essence, it is difficult to <em>reduce</em> the transparency 
+    of regions of the mask by <em>adding</em> more drawing.    
+  </p>
+    <rcode fig.width="2" fig.height="1"><![CDATA[
+grid.segments(gp=gpar(col=3, lwd=20))
+pushViewport(viewport(mask=alphaMask))
+grid.group(testGrob)
+  ]]></rcode>
+    <p>
+    Another general benefit of adding luminance masks, and other
+    sophisticated graphics features, is that this
+    expands the "vocabulary" of R graphics.  It becomes possible to
+    express new graphical results and it becomes possible to think
+    about new solutions to graphical problems.
+  </p>
+    <p>
+    For example, we have just seen that it is not straightforward to
+    produce an alpha mask that corresponds to a relatively straightforward
+    luminance mask.  Because luminance masks are only available on
+    the <code>pdf()</code> device, this means that 
+    we cannot use a luminance mask
+    to produce the same result on a Cairo-based device.
+    However, on Cairo-based devices, we can use compositing operators
+    that are not available on the <code>pdf()</code> device, e.g.,
+    the <code>"source"</code> operator
+    (see <a href="#murrell-groups-2021">Murrell, 2021b</a>). 
+  </p>
+    <p>
+    The following code demonstrates that we can produce an alpha
+    mask that is equivalent to the luminance mask if we combine the circle,
+    the semitransparent thick border, and the semitransparent vertical line
+    using the <code>"source"</code> operator.  Using the <code>"source"</code>
+    operator means that, for example, when we add the border to the
+    circle, the border <em>replaces</em> the circle wherever the two
+    overlap.  In this way, we can replace the opaque circle with the
+    semitransparent border (where they overlap) and we can replace the 
+    opaque circle with the vertical line in the same way.
+  </p>
+    <rcode><![CDATA[
+alphaMask <- groupGrob(line, "source", 
+                       groupGrob(border, "source", circle))
+  ]]></rcode>
+    <rcode fig.width="2" fig.height="1"><![CDATA[
+grid.segments(gp=gpar(col=3, lwd=20))
+grid.draw(alphaMask)
+  ]]></rcode>
+    <p>
+    The result from using this alpha mask is the same as the result
+    that we saw from using the luminance mask.
+  </p>
+    <rcode fig.width="2" fig.height="1"><![CDATA[
+grid.segments(gp=gpar(col=3, lwd=20))
+pushViewport(viewport(mask=alphaMask))
+grid.group(testGrob)
+  ]]></rcode>
+    <p>
+    That is not a demonstration of using a luminance mask to solve
+    a problem (in fact, a luminance mask created the problem - how 
+    to produce the same effect as a luminance mask on a graphics 
+    device that does not support luminance masks!).
+    However, it is a demonstration of the general idea that 
+    having access to more sophisticated graphical tools makes it
+    possible for us to think of new solutions to problems.
+  </p>
+    <h3>Limitations</h3>
+    <p>
+    The major limitation of luminance masks in R graphics
+    is that they are only 
+    supported on the <code>pdf()</code> graphics device so far.
+    Graphics devices based on the Cairo graphics library 
+    (<a href="#cairo">Packard et al., 2021</a>)
+    will ignore luminance masks (with a warning).
+    Other graphics devices within 'grDevices' will just silently
+    ignore masks altogether.
+    The 'ragg' device (<a href="#pkg:ragg">Pedersen and Shemanarev, 2021</a>) has added support for alpha masks
+    so it will hopefully also be able to support luminance masks.
+  </p>
+    <p>
+    Another limitation is that luminance masks are only available
+    via the 'grid' package.  There is no user interface for the
+    'graphics' package.  The 'gridGraphics' package 
+    (<a href="#pkg:gridGraphics">Murrell and Wen, 2020</a>) 
+    provides a workaround, allowing 'graphics' output to be converted
+    to 'grid' output. 
+  </p>
+    <p>
+    In time, it may be that the 'ggplot2'
+    package (<a href="#pkg:ggplot2">Wickham, 2016</a>) provides a way to make use of masks;
+    in the meantime, the 'gggrid' package (<a href="#pkg:gggrid">Murrell, 2021a</a>) provides
+    a simple interface for adding 'grid' output to a 'ggplot2' plot.
+  </p>
+    <h2>
+      <a name="requirements">5. Technical requirements</a>
+    </h2>
+    <p>
+    The examples and discussion in this report relate to 
+    the development version of R (specifically revision 81125),
+    which will probably become R version 4.2.0.
+  </p>
+    <p>
+    This report was generated within a Docker container
+    (see <a href="#Resources">Resources</a> section below).
+  </p>
+    <h2>
+      <a name="Resources">6. Resources</a>
+    </h2>
+    <ul>
+      <li>
+      The <a href="masks.cml">raw source file</a> for this
+      report, a <a href="masks.xml">valid XML</a>
+      transformation of the source file, a <a href="masks.Rhtml">'knitr' document</a> generated from
+      the XML file, 
+      two <a href="toc.R">R</a> <a href="bib.R">files</a> and
+      the <a href="masks.bib">bibtex file</a>
+      that are used to generate the table of contents and reference sections,
+      two <a href="common.xsl">XSL</a> <a href="knitr.xsl">files</a> and an 
+      <a href="knit.R">R file</a> that are used to transform the XML to
+      the 'knitr' document, and a <a href="Makefile">Makefile</a> that
+      contains code for the other transformations and coordinates
+      everything.  
+      These materials are also available
+      on <a href="https://github.com/pmur002/masks-report/releases/tag/v1">github</a>.
+    </li>
+      <li>
+      This report was generated within a 
+      <a href="https://www.docker.com/">Docker</a> container.
+      The Docker command to build the report is included in the Makefile above.
+      The Docker image for the container is available from
+      <a href="https://hub.docker.com/r/pmur002/masks-report/">Docker Hub</a>;
+      alternatively, the image can be rebuilt from its 
+      <a href="Dockerfile">Dockerfile</a>.
+    </li>
+    </ul>
+    <h2>How to cite this report</h2>
+    <p>
+    Murrell, P. (2021). "Luminance Masks in R Graphics" 
+    Technical Report 2021-0?, Department of Statistics, The University of Auckland. 
+    Version 1.
+    [ <a href="how-to-cite.bib">bib</a> |
+      <a href="http://dx.doi.org/">DOI</a> | 
+      <a href="https://stattech.blogs.auckland.ac.nz/">http</a> ]
+  </p>
+    <h2>
+      <a name="references">7. References</a>
+    </h2>
+    <dl><dt>
+[<a name="PDF">Adobe Systems Incorporated, 2001</a>]
+</dt>
+<dd>
+Adobe Systems Incorporated (2001).
+ <em>PDF Reference: Adobe portable document format version 1.4</em>, 3rd
+  edition.
+[ <a href="masks-bib_bib.html#PDF">bib</a> | 
+<a href="https://www.adobe.com/content/dam/acom/en/devnet/pdf/pdfs/pdf_reference_archives/PDFReference.pdf">.pdf</a> ]
+
+</dd>
+
+
+<dt>
+[<a name="CSS">Bos et al., 1998</a>]
+</dt>
+<dd>
+Bos, B., Lie, H. W., Lilley, C., and Jacobs, I. (1998).
+ <em>Cascading Style Sheets, level 2, CSS2 Specification</em>.
+ (revised 11 April 2008).
+[ <a href="masks-bib_bib.html#CSS">bib</a> | 
+<a href="http://www.w3.org/TR/2008/REC-CSS2-20080411/">http</a> ]
+
+</dd>
+
+
+<dt>
+[<a name="murrell-definitions-2020">Murrell, 2020</a>]
+</dt>
+<dd>
+Murrell, P. (2020).
+ Catching up with R graphics.
+ Technical Report 2020-04, Department of Statistics, The University of
+  Auckland.
+ version 1.
+[ <a href="masks-bib_bib.html#murrell-definitions-2020">bib</a> | 
+<a href="http://dx.doi.org/10.17608/k6.auckland.12649751">DOI</a> | 
+<a href="https://stattech.blogs.auckland.ac.nz/2020/07/14/2020-04-catching-up-with-r-graphics/">http</a> ]
+
+</dd>
+
+
+<dt>
+[<a name="pkg:gggrid">Murrell, 2021a</a>]
+</dt>
+<dd>
+Murrell, P. (2021a).
+ <em>gggrid: Draw with 'grid' in 'ggplot2'</em>.
+ R package version 0.1-0.
+[ <a href="masks-bib_bib.html#pkg:gggrid">bib</a> ]
+
+</dd>
+
+
+<dt>
+[<a name="murrell-groups-2021">Murrell, 2021b</a>]
+</dt>
+<dd>
+Murrell, P. (2021b).
+ Groups, compositing operators, and affine transformations in R
+  graphics.
+ Technical Report 2021-02, Department of Statistics, The University of
+  Auckland.
+ version 1.
+[ <a href="masks-bib_bib.html#murrell-groups-2021">bib</a> | 
+<a href="http://dx.doi.org/10.17608/k6.auckland.17009120">DOI</a> | 
+<a href="https://stattech.blogs.auckland.ac.nz/2021/11/15/2021-02-groups-compositing-operators-and-affine-transformations-in-r-graphics">http</a> ]
+
+</dd>
+
+
+<dt>
+[<a name="pkg:gridGraphics">Murrell and Wen, 2020</a>]
+</dt>
+<dd>
+Murrell, P. and Wen, Z. (2020).
+ <em>gridGraphics: Redraw Base Graphics Using 'grid' Graphics</em>.
+ R package version 0.5-1.
+[ <a href="masks-bib_bib.html#pkg:gridGraphics">bib</a> | 
+<a href="https://CRAN.R-project.org/package=gridGraphics">http</a> ]
+
+</dd>
+
+
+<dt>
+[<a name="cairo">Packard et al., 2021</a>]
+</dt>
+<dd>
+Packard, K., Worth, C., and Esfahbod, B. (2021).
+ Cairo graphics library.
+ <a href="https://www.cairographics.org/">https://www.cairographics.org/</a>.
+ Accessed: 2021-10-24.
+[ <a href="masks-bib_bib.html#cairo">bib</a> ]
+
+</dd>
+
+
+<dt>
+[<a name="pkg:ragg">Pedersen and Shemanarev, 2021</a>]
+</dt>
+<dd>
+Pedersen, T. L. and Shemanarev, M. (2021).
+ <em>ragg: Graphic Devices Based on AGG</em>.
+ R package version 1.2.0.
+[ <a href="masks-bib_bib.html#pkg:ragg">bib</a> | 
+<a href="https://CRAN.R-project.org/package=ragg">http</a> ]
+
+</dd>
+
+
+<dt>
+[<a name="R">R Core Team, 2019</a>]
+</dt>
+<dd>
+R Core Team (2019).
+ <em>R: A Language and Environment for Statistical Computing</em>.
+ R Foundation for Statistical Computing, Vienna, Austria.
+[ <a href="masks-bib_bib.html#R">bib</a> | 
+<a href="https://www.R-project.org/">http</a> ]
+
+</dd>
+
+
+<dt>
+[<a name="pkg:ggplot2">Wickham, 2016</a>]
+</dt>
+<dd>
+Wickham, H. (2016).
+ <em>ggplot2: Elegant Graphics for Data Analysis</em>.
+ Springer-Verlag New York.
+[ <a href="masks-bib_bib.html#pkg:ggplot2">bib</a> | 
+<a href="https://ggplot2.tidyverse.org">http</a> ]
+
+</dd>
+</dl>
+    <hr/>
+    <p><a rel="license" href="http://creativecommons.org/licenses/by/4.0/"><img class="CC" alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by/4.0/88x31.png"/></a><br/><span xmlns:dct="http://purl.org/dc/terms/" property="dct:title">This document</span>
+    by <span xmlns:cc="http://creativecommons.org/ns#" property="cc:attributionName">Paul
+    Murrell</span> is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by/4.0/">Creative
+    Commons Attribution 4.0 International License</a>.
+  </p>
+  </body>
+</html>

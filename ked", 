@@ -1,0 +1,169 @@
+lighten               package:colorspace               R Documentation
+
+_A_l_g_o_r_i_t_h_m_i_c_a_l_l_y _L_i_g_h_t_e_n _o_r _D_a_r_k_e_n _C_o_l_o_r_s
+
+_D_e_s_c_r_i_p_t_i_o_n:
+
+     The functions ‘lighten’ and ‘darken’ take a vector of R colors and
+     adjust the colors such that they appear lightened or darkened,
+     respectively.
+
+_U_s_a_g_e:
+
+     lighten(
+       col,
+       amount = 0.1,
+       method = c("relative", "absolute"),
+       space = c("HCL", "HLS", "combined"),
+       fixup = TRUE
+     )
+     
+     darken(col, amount = 0.1, space = "combined", ...)
+     
+_A_r_g_u_m_e_n_t_s:
+
+     col: vector of any of the three kind of R colors, i.e., either a
+          color name (an element of ‘colors’), a hexadecimal string of
+          the form ‘"#rrggbb"’ or ‘"#rrggbbaa"’ (see ‘rgb’), or an
+          integer ‘i’ meaning ‘palette()[i]’.
+
+  amount: numeric specifying the amount of lightening. This is applied
+          either multiplicatively or additively to the luminance value,
+          depending on the setting of ‘method’ (either relative or
+          absolute). Negative numbers cause darkening.
+
+  method: character string specifying the adjustment method. Can be
+          either ‘"relative"’ or ‘"absolute"’.
+
+   space: character string specifying the color space in which
+          adjustment happens. Can be either ‘"HLS"’ or ‘"HCL"’.
+
+   fixup: logical If set to ‘TRUE’, colors that fall outside of the RGB
+          color gamut are slightly modified by translating individual
+          primary values so they lie between 0 and 255. If set to
+          ‘FALSE’, out-of-gamut colors are replaced by ‘NA’.
+
+     ...: Other parameters handed to the function ‘lighten()’.
+
+_D_e_t_a_i_l_s:
+
+     The color adjustment can be calculated in three different color
+     spaces.
+
+       1. If ‘space = "HCL"’, the colors are transformed to HCL,
+          (‘polarLUV’), the luminance component L is adjusted, and then
+          the colors are transformed back to a hexadecimal RGB string.
+
+       2. If ‘space = "HLS"’, the colors are transformed to HLS, the
+          lightness component L is adjusted, and then the color is
+          transformed back to a hexadecimal RGB string.
+
+       3. If ‘space = "combined"’, the colors are first adjusted in
+          both the HCL and HLS spaces. Then, the adjusted HLS colors
+          are converted into HCL, and then the chroma components of the
+          adjusted HLS colors are copied to the adjusted HCL colors.
+          Thus, in effect, the combined model adjusts luminance in HCL
+          space but chroma in HLS space.
+
+     We have found that typically ‘space = "HCL"’ performs best for
+     lightening colors and ‘space = "combined"’ performs best for
+     darkening colors, and these are the default settings for ‘lighten’
+     and ‘darken’, respectively.
+
+     Regardless of the chosen color space, the adjustment of the L
+     component can occur by two methods, relative (the default) and
+     absolute. Under the absolute method, the adjustment is ‘L +/- 100
+     * amount’ when lightening/darkening colors. Under the relative
+     method, the adjustment is ‘100 - (100 - L) * (1 - amount)’ when
+     lightening colors and ‘L * (1 - amount)’ when darkening colors.
+
+     Programmatically lightening and darkening colors can yield
+     unexpected results (see examples). In HCL space, colors can become
+     either too gray or overly colorful. By contrast, in HLS space it
+     can happen that the overall amount of lightening or darkening
+     appears to be non-uniform among a group of colors that are
+     lightened or darkened jointly, and again, colors can become either
+     too gray or overly colorful. We recommend to try different color
+     spaces if the default space for the chosen function (‘lighten’ or
+     ‘darken’) does not look right in a specific application.
+
+_V_a_l_u_e:
+
+     A character vector with (s)RGB codings of the colors in the
+     palette.
+
+_R_e_f_e_r_e_n_c_e_s:
+
+     Zeileis A, Fisher JC, Hornik K, Ihaka R, McWhite CD, Murrell P,
+     Stauffer R, Wilke CO (2020). “colorspace: A Toolbox for
+     Manipulating and Assessing Colors and Palettes.” _Journal of
+     Statistical Software_, *96*(1), 1-49. doi: 10.18637/jss.v096.i01
+     (URL: https://doi.org/10.18637/jss.v096.i01)
+
+_S_e_e _A_l_s_o:
+
+     ‘polarLUV’, ‘hex’, ‘desaturate’
+
+_E_x_a_m_p_l_e_s:
+
+     # lighten dark colors, example 1
+     cl <- qualitative_hcl(5)
+     swatchplot(list(
+       HCL = rbind("0%" = cl,
+                   "15%" = lighten(cl, 0.15),
+                   "30%" = lighten(cl, 0.3)),
+       HLS = rbind("0%" = cl,
+                   "15%" = lighten(cl, 0.15, space = "HLS"),
+                   "30%" = lighten(cl, 0.3, space = "HLS")),
+       combined = rbind("0%" = cl,
+                   "15%" = lighten(cl, 0.15, space = "combined"),
+                   "30%" = lighten(cl, 0.3, space = "combined"))),
+       nrow = 4, line = 2.5
+     )
+     
+     # lighten dark colors, example 2
+     cl <- c("#61A9D9", "#ADD668", "#E6D152", "#CE6BAF", "#797CBA")
+     swatchplot(list(
+       HCL = rbind("0%" = cl,
+                   "15%" = lighten(cl, 0.15),
+                   "30%" = lighten(cl, 0.3)),
+       HLS = rbind("0%" = cl,
+                   "15%" = lighten(cl, 0.15, space = "HLS"),
+                   "30%" = lighten(cl, 0.3, space = "HLS")),
+       combined = rbind("0%" = cl,
+                   "15%" = lighten(cl, 0.15, space = "combined"),
+                   "30%" = lighten(cl, 0.3, space = "combined"))),
+       nrow = 4, line = 2.5
+     )
+     
+     # darken light colors, example 1
+     cl <- qualitative_hcl(5, "Pastel 1")
+     swatchplot(list(
+       combined = rbind("0%" = cl,
+                   "15%" = darken(cl, 0.15),
+                   "30%" = darken(cl, 0.3)),
+       HCL = rbind("0%" = cl,
+                   "15%" = darken(cl, 0.15, space = "HCL"),
+                   "30%" = darken(cl, 0.3, space = "HCL")),
+       HLS = rbind("0%" = cl,
+                   "15%" = darken(cl, 0.15, space = "HLS"),
+                   "30%" = darken(cl, 0.3, space = "HLS"))),
+       nrow = 4, line = 2.5
+     )
+     
+     # darken light colors, example 2 
+     cl <- c("#CDE4F3","#E7F3D3","#F7F0C7","#EFCFE5","#D0D1E7")
+     swatchplot(list(
+       combined = rbind("0%" = cl,
+                   "15%" = darken(cl, 0.15),
+                   "30%" = darken(cl, 0.3)),
+       HCL = rbind("0%" = cl,
+                   "15%" = darken(cl, 0.15, space = "HCL"),
+                   "30%" = darken(cl, 0.3, space = "HCL")),
+       HLS = rbind("0%" = cl,
+                   "15%" = darken(cl, 0.15, space = "HLS"),
+                   "30%" = darken(cl, 0.3, space = "HLS"))),
+       nrow = 4, line = 2.5
+     )
+     
+

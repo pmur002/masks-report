@@ -1,0 +1,42 @@
+  <p>
+    Use a luminance mask to draw a star ?
+  </p>
+  <rcode>
+opaque <- 2
+semitrans <- adjustcolor(opaque, alpha=.5)
+theta <- seq(36, 360, 72) * pi/180
+x <- .5 + .5*cos(theta)[c(1,3,5,2,4)]
+y <- .5 + .5*sin(theta)[c(1,3,5,2,4)]    
+  </rcode>
+  <rcode fig.keep="none" results="hide">
+## Mask version (PDF only)
+pdf("mask-star.pdf", width=2, height=2)
+grid.segments(gp=gpar(lwd=10))
+mask <- as.mask(gTree(children=gList(polygonGrob(x=x, y=y, 
+                                                 gp=gpar(col="white", lwd=10)),
+                                     polygonGrob(x=x, y=y, 
+                                                 gp=gpar(col=NA, fill="black")))),
+                type="luminance")
+pushViewport(viewport(width=.8, height=.8))
+grid.polygon(x, y, gp=gpar(col=NA, fill=semitrans))
+pushViewport(viewport(mask=mask))
+grid.polygon(x, y, gp=gpar(col=opaque, lwd=10))
+popViewport()
+dev.off()
+  </rcode>
+  <rcode echo="FALSE">
+system("pdftoppm -png -rx 96 -ry 96 mask-star.pdf > mask-star.png")
+  </rcode>
+  <p>
+    <img class="plot" src="mask-star.png"/>
+  </p>
+  <rcode fig.width="2" fig.height="2">
+## Group version (Cairo only)
+grid.newpage()
+grid.segments(gp=gpar(lwd=10))
+pushViewport(viewport(width=.8, height=.8))
+grid.group(polygonGrob(x, y, gp=gpar(col=NA, fill=semitrans)),
+           "source",
+           polygonGrob(x, y, gp=gpar(col=opaque, lwd=10)))
+  </rcode>
+
