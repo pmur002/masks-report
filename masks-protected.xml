@@ -561,11 +561,11 @@ grid.group(testGrob)
   <h2>How to cite this report</h2>
   <p>
     Murrell, P. (2021). "Luminance Masks in R Graphics" 
-    Technical Report 2021-0?, Department of Statistics, The University of Auckland. 
+    Technical Report 2021-04, Department of Statistics, The University of Auckland. 
     Version 1.
     [ <a href="how-to-cite.bib">bib</a> |
-      <a href="http://dx.doi.org/">DOI</a> | 
-      <a href="https://stattech.blogs.auckland.ac.nz/">http</a> ]
+      <a href="http://dx.doi.org/10.17608/k6.auckland.17102657">DOI</a> | 
+      <a href="https://stattech.blogs.auckland.ac.nz/2021/12/01/2021-04-luminance-masks-in-r-graphics">http</a> ]
   </p>
 
   <h2><a name="references">References</a></h2>
