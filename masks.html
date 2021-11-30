@@ -111,7 +111,7 @@
     </p>
     <p class="date">
     Version 1:  
-Monday 29 November 2021
+Wednesday 01 December 2021
   </p>
 
 
@@ -124,7 +124,8 @@ Monday 29 November 2021
     <hr>
     <p>
     This document describes an extension of the support for 
-    masks in the R graphics to allow luminance masks. 
+    masks in R graphics to allow luminance masks as well as 
+    alpha masks. 
   </p>
     <p>
     These features are available in the development version of R 
@@ -307,7 +308,7 @@ Monday 29 November 2021
     </p>
     <p>
     The result is the same as the last alpha mask example,
-    but in this case the semitransparency of the text has been derived
+    but in this case the semitransparency of the test image has been derived
     from the greyscale values of the luminance mask.  Where the mask
     is white, the test image is drawn opaque and, where the mask is grey,
     the test image is drawn semitransparent.
@@ -347,8 +348,10 @@ Monday 29 November 2021
       <a name="device">3. Device API</a>
     </h2>
     <p>
-    There is no change required to graphics devices as a result of this 
-    change.  However, devices can now inspect the type of a mask
+    There is no change <em>required</em>
+    to graphics devices as a result of this 
+    change.  However, devices that support masks should
+    now inspect the type of a mask
     to check whether it is an alpha mask or a luminance mask.
   </p>
     <p>
@@ -418,7 +421,7 @@ Monday 29 November 2021
     Note that the important feature in an alpha mask is the
     mask transparency;  an opaque red is equivalent to an opaque black
     (we use red here because it makes it easier to see the semitransparent
-    border an line drawn on top).
+    border and line drawn on top).
   </p>
 <div class="chunk" id="unnamed-chunk-20"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl std">circle</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">circleGrob</span><span class="hl std">(</span><span class="hl kwc">gp</span><span class="hl std">=</span><span class="hl kwd">gpar</span><span class="hl std">(</span><span class="hl kwc">col</span><span class="hl std">=</span><span class="hl num">NA</span><span class="hl std">,</span> <span class="hl kwc">fill</span><span class="hl std">=</span><span class="hl num">2</span><span class="hl std">))</span>
 <span class="hl std">border</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">circleGrob</span><span class="hl std">(</span><span class="hl kwc">gp</span><span class="hl std">=</span><span class="hl kwd">gpar</span><span class="hl std">(</span><span class="hl kwc">col</span><span class="hl std">=</span><span class="hl kwd">rgb</span><span class="hl std">(</span><span class="hl num">0</span><span class="hl std">,</span><span class="hl num">0</span><span class="hl std">,</span><span class="hl num">0</span><span class="hl std">,</span><span class="hl num">.5</span><span class="hl std">),</span> <span class="hl kwc">lwd</span><span class="hl std">=</span><span class="hl num">20</span><span class="hl std">,</span> <span class="hl kwc">fill</span><span class="hl std">=</span><span class="hl num">NA</span><span class="hl std">))</span>
@@ -435,7 +438,8 @@ Monday 29 November 2021
     test image is opaque wherever the red circle is drawn.
     Only the parts of the semitransparent border that stick out past
     the red circle result in a semitransparent test image.
-    In essence, it is difficult to <em>reduce</em> the transparency 
+    In essence, the proble is that 
+    it is difficult to <em>reduce</em> the transparency 
     of regions of the mask by <em>adding</em> more drawing.    
   </p>
 <div class="chunk" id="unnamed-chunk-21"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl kwd">grid.segments</span><span class="hl std">(</span><span class="hl kwc">gp</span><span class="hl std">=</span><span class="hl kwd">gpar</span><span class="hl std">(</span><span class="hl kwc">col</span><span class="hl std">=</span><span class="hl num">3</span><span class="hl std">,</span> <span class="hl kwc">lwd</span><span class="hl std">=</span><span class="hl num">20</span><span class="hl std">))</span>
@@ -451,7 +455,56 @@ Monday 29 November 2021
     about new solutions to graphical problems.
   </p>
     <p>
-    For example, we have just seen that it is not straightforward to
+    For example, the <code>pdf()</code> device does not support
+    many compositing operators, such as the "clear" operator.
+    The following code shows an example of the "clear" operator, 
+    on a graphics device
+    based on the Cairo graphics library (<a href="#cairo">Packard et al., 2021</a>).
+    Here we are drawing a circle on top of a rectangle using
+    the "clear" operator, so the circle takes a "bite" out of the 
+    bottom-right corner of the rectangle.
+  </p>
+<div class="chunk" id="unnamed-chunk-22"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl kwd">grid.group</span><span class="hl std">(</span><span class="hl kwd">circleGrob</span><span class="hl std">(</span><span class="hl num">2</span><span class="hl opt">/</span><span class="hl num">3</span><span class="hl std">,</span> <span class="hl num">1</span><span class="hl opt">/</span><span class="hl num">3</span><span class="hl std">,</span> <span class="hl kwc">r</span><span class="hl std">=</span><span class="hl num">.3</span><span class="hl std">,</span> <span class="hl kwc">gp</span><span class="hl std">=</span><span class="hl kwd">gpar</span><span class="hl std">(</span><span class="hl kwc">fill</span><span class="hl std">=</span><span class="hl str">&quot;black&quot;</span><span class="hl std">)),</span>
+           <span class="hl str">&quot;clear&quot;</span><span class="hl std">,</span>
+           <span class="hl kwd">rectGrob</span><span class="hl std">(</span><span class="hl num">1</span><span class="hl opt">/</span><span class="hl num">3</span><span class="hl std">,</span> <span class="hl num">2</span><span class="hl opt">/</span><span class="hl num">3</span><span class="hl std">,</span> <span class="hl num">.5</span><span class="hl std">,</span> <span class="hl num">.5</span><span class="hl std">,</span>
+                    <span class="hl kwc">gp</span><span class="hl std">=</span><span class="hl kwd">gpar</span><span class="hl std">(</span><span class="hl kwc">col</span><span class="hl std">=</span><span class="hl kwd">darken</span><span class="hl std">(</span><span class="hl num">4</span><span class="hl std">,</span> <span class="hl num">.5</span><span class="hl std">),</span> <span class="hl kwc">lwd</span><span class="hl std">=</span><span class="hl num">10</span><span class="hl std">,</span> <span class="hl kwc">fill</span><span class="hl std">=</span><span class="hl num">4</span><span class="hl std">)))</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-22-1.png" title="plot of chunk unnamed-chunk-22" alt="plot of chunk unnamed-chunk-22" class="plot" /></div></div>
+    <p>
+    The <code>pdf()</code> device does not produce the correct result
+    from the code above (because it does not support the "clear" operator).
+    However, it is easy to get the same result using a luminance mask.
+  </p>
+    <p>
+    For example, the code below creates 
+    a mask that is white everywhere with a black circle drawn in the
+    bottom-right corner.
+  </p>
+<div class="chunk" id="unnamed-chunk-23"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl std">grob</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">gTree</span><span class="hl std">(</span><span class="hl kwc">children</span><span class="hl std">=</span><span class="hl kwd">gList</span><span class="hl std">(</span><span class="hl kwd">rectGrob</span><span class="hl std">(</span><span class="hl kwc">gp</span><span class="hl std">=</span><span class="hl kwd">gpar</span><span class="hl std">(</span><span class="hl kwc">col</span><span class="hl std">=</span><span class="hl num">NA</span><span class="hl std">,</span> <span class="hl kwc">fill</span><span class="hl std">=</span><span class="hl str">&quot;white&quot;</span><span class="hl std">)),</span>
+                             <span class="hl kwd">circleGrob</span><span class="hl std">(</span><span class="hl num">2</span><span class="hl opt">/</span><span class="hl num">3</span><span class="hl std">,</span> <span class="hl num">1</span><span class="hl opt">/</span><span class="hl num">3</span><span class="hl std">,</span> <span class="hl kwc">r</span><span class="hl std">=</span><span class="hl num">.3</span><span class="hl std">,</span>
+                                        <span class="hl kwc">gp</span><span class="hl std">=</span><span class="hl kwd">gpar</span><span class="hl std">(</span><span class="hl kwc">fill</span><span class="hl std">=</span><span class="hl str">&quot;black&quot;</span><span class="hl std">))))</span>
+<span class="hl kwd">grid.draw</span><span class="hl std">(grob)</span>
+</pre></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-23-1.png" title="plot of chunk unnamed-chunk-23" alt="plot of chunk unnamed-chunk-23" class="plot" /></div></div>
+    <p>
+    If we push a viewport with that mask and draw the blue rectangle,
+    the mask takes a "bite" out of the bottom-right corner of the
+    rectangle, giving the same result as the "clear" operator.
+  </p>
+<div class="chunk" id="unnamed-chunk-24"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl kwd">pdf</span><span class="hl std">(</span><span class="hl str">&quot;clear-mask.pdf&quot;</span><span class="hl std">,</span> <span class="hl kwc">width</span><span class="hl std">=</span><span class="hl num">2</span><span class="hl std">,</span> <span class="hl kwc">height</span><span class="hl std">=</span><span class="hl num">2</span><span class="hl std">)</span>
+<span class="hl kwd">pushViewport</span><span class="hl std">(</span><span class="hl kwd">viewport</span><span class="hl std">(</span><span class="hl kwc">mask</span><span class="hl std">=</span><span class="hl kwd">as.mask</span><span class="hl std">(grob,</span> <span class="hl str">&quot;luminance&quot;</span><span class="hl std">)))</span>
+<span class="hl kwd">grid.rect</span><span class="hl std">(</span><span class="hl num">1</span><span class="hl opt">/</span><span class="hl num">3</span><span class="hl std">,</span> <span class="hl num">2</span><span class="hl opt">/</span><span class="hl num">3</span><span class="hl std">,</span> <span class="hl num">.5</span><span class="hl std">,</span> <span class="hl num">.5</span><span class="hl std">,</span> <span class="hl kwc">gp</span><span class="hl std">=</span><span class="hl kwd">gpar</span><span class="hl std">(</span><span class="hl kwc">col</span><span class="hl std">=</span><span class="hl kwd">darken</span><span class="hl std">(</span><span class="hl num">4</span><span class="hl std">,</span> <span class="hl num">.5</span><span class="hl std">),</span> <span class="hl kwc">lwd</span><span class="hl std">=</span><span class="hl num">10</span><span class="hl std">,</span> <span class="hl kwc">fill</span><span class="hl std">=</span><span class="hl num">4</span><span class="hl std">))</span>
+<span class="hl kwd">dev.off</span><span class="hl std">()</span>
+</pre></div>
+</div></div>
+    <!-- NOTE that the slight discoloration in this PNG appears to be due to the 
+       pdftoppm conversion;  the PDF looks right -->
+
+    <p>
+      <img class="plot" src="clear-mask.png">
+    </p>
+    <p>
+    As another example, we have just seen that it is not straightforward to
     produce an alpha mask that corresponds to a relatively straightforward
     luminance mask.  Because luminance masks are only available on
     the <code>pdf()</code> device, this means that 
@@ -473,23 +526,23 @@ Monday 29 November 2021
     semitransparent border (where they overlap) and we can replace the 
     opaque circle with the vertical line in the same way.
   </p>
-<div class="chunk" id="unnamed-chunk-22"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl std">alphaMask</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">groupGrob</span><span class="hl std">(line,</span> <span class="hl str">&quot;source&quot;</span><span class="hl std">,</span>
+<div class="chunk" id="unnamed-chunk-26"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl std">alphaMask</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">groupGrob</span><span class="hl std">(line,</span> <span class="hl str">&quot;source&quot;</span><span class="hl std">,</span>
                        <span class="hl kwd">groupGrob</span><span class="hl std">(border,</span> <span class="hl str">&quot;source&quot;</span><span class="hl std">, circle))</span>
 </pre></div>
 </div></div>
-<div class="chunk" id="unnamed-chunk-23"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl kwd">grid.segments</span><span class="hl std">(</span><span class="hl kwc">gp</span><span class="hl std">=</span><span class="hl kwd">gpar</span><span class="hl std">(</span><span class="hl kwc">col</span><span class="hl std">=</span><span class="hl num">3</span><span class="hl std">,</span> <span class="hl kwc">lwd</span><span class="hl std">=</span><span class="hl num">20</span><span class="hl std">))</span>
+<div class="chunk" id="unnamed-chunk-27"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl kwd">grid.segments</span><span class="hl std">(</span><span class="hl kwc">gp</span><span class="hl std">=</span><span class="hl kwd">gpar</span><span class="hl std">(</span><span class="hl kwc">col</span><span class="hl std">=</span><span class="hl num">3</span><span class="hl std">,</span> <span class="hl kwc">lwd</span><span class="hl std">=</span><span class="hl num">20</span><span class="hl std">))</span>
 <span class="hl kwd">grid.draw</span><span class="hl std">(alphaMask)</span>
 </pre></div>
-</div><div class="rimage default"><img src="figure/unnamed-chunk-23-1.png" title="plot of chunk unnamed-chunk-23" alt="plot of chunk unnamed-chunk-23" class="plot" /></div></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-27-1.png" title="plot of chunk unnamed-chunk-27" alt="plot of chunk unnamed-chunk-27" class="plot" /></div></div>
     <p>
     The result from using this alpha mask is the same as the result
     that we saw from using the luminance mask.
   </p>
-<div class="chunk" id="unnamed-chunk-24"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl kwd">grid.segments</span><span class="hl std">(</span><span class="hl kwc">gp</span><span class="hl std">=</span><span class="hl kwd">gpar</span><span class="hl std">(</span><span class="hl kwc">col</span><span class="hl std">=</span><span class="hl num">3</span><span class="hl std">,</span> <span class="hl kwc">lwd</span><span class="hl std">=</span><span class="hl num">20</span><span class="hl std">))</span>
+<div class="chunk" id="unnamed-chunk-28"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl kwd">grid.segments</span><span class="hl std">(</span><span class="hl kwc">gp</span><span class="hl std">=</span><span class="hl kwd">gpar</span><span class="hl std">(</span><span class="hl kwc">col</span><span class="hl std">=</span><span class="hl num">3</span><span class="hl std">,</span> <span class="hl kwc">lwd</span><span class="hl std">=</span><span class="hl num">20</span><span class="hl std">))</span>
 <span class="hl kwd">pushViewport</span><span class="hl std">(</span><span class="hl kwd">viewport</span><span class="hl std">(</span><span class="hl kwc">mask</span><span class="hl std">=alphaMask))</span>
 <span class="hl kwd">grid.group</span><span class="hl std">(testGrob)</span>
 </pre></div>
-</div><div class="rimage default"><img src="figure/unnamed-chunk-24-1.png" title="plot of chunk unnamed-chunk-24" alt="plot of chunk unnamed-chunk-24" class="plot" /></div></div>
+</div><div class="rimage default"><img src="figure/unnamed-chunk-28-1.png" title="plot of chunk unnamed-chunk-28" alt="plot of chunk unnamed-chunk-28" class="plot" /></div></div>
     <p>
     That is not a demonstration of using a luminance mask to solve
     a problem (in fact, a luminance mask created the problem - how 
@@ -504,8 +557,7 @@ Monday 29 November 2021
     The major limitation of luminance masks in R graphics
     is that they are only 
     supported on the <code>pdf()</code> graphics device so far.
-    Graphics devices based on the Cairo graphics library 
-    (<a href="#cairo">Packard et al., 2021</a>)
+    Cairo-based graphics devices
     will ignore luminance masks (with a warning).
     Other graphics devices within 'grDevices' will just silently
     ignore masks altogether.
@@ -522,7 +574,7 @@ Monday 29 November 2021
   </p>
     <p>
     In time, it may be that the 'ggplot2'
-    package (<a href="#pkg:ggplot2">Wickham, 2016</a>) provides a way to make use of masks;
+    package (<a href="#pkg:ggplot2">Wickham, 2016</a>) will provide a way to make use of masks;
     in the meantime, the 'gggrid' package (<a href="#pkg:gggrid">Murrell, 2021a</a>) provides
     a simple interface for adding 'grid' output to a 'ggplot2' plot.
   </p>

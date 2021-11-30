@@ -79,7 +79,8 @@ options(bitmapType="cairo")
   <hr/>
   <p>
     This document describes an extension of the support for 
-    masks in the R graphics to allow luminance masks. 
+    masks in R graphics to allow luminance masks as well as 
+    alpha masks. 
   </p>
   <p>
     These features are available in the development version of R 
@@ -239,7 +240,7 @@ system("pdftoppm -png -rx 96 -ry 96 luminance-mask.pdf > luminance-mask.png")
   </p>
   <p>
     The result is the same as the last alpha mask example,
-    but in this case the semitransparency of the text has been derived
+    but in this case the semitransparency of the test image has been derived
     from the greyscale values of the luminance mask.  Where the mask
     is white, the test image is drawn opaque and, where the mask is grey,
     the test image is drawn semitransparent.
@@ -280,8 +281,10 @@ system("pdftoppm -png -rx 96 -ry 96 luminance-mask-2.pdf > luminance-mask-2.png"
 
   <h2><a name="device">Device API</a></h2>
   <p>
-    There is no change required to graphics devices as a result of this 
-    change.  However, devices can now inspect the type of a mask
+    There is no change <em>required</em>
+    to graphics devices as a result of this 
+    change.  However, devices that support masks should
+    now inspect the type of a mask
     to check whether it is an alpha mask or a luminance mask.
   </p>
   <p>
@@ -352,7 +355,7 @@ system("pdftoppm -png -rx 96 -ry 96 luminance-mask-3.pdf > luminance-mask-3.png"
     Note that the important feature in an alpha mask is the
     mask transparency;  an opaque red is equivalent to an opaque black
     (we use red here because it makes it easier to see the semitransparent
-    border an line drawn on top).
+    border and line drawn on top).
   </p>
   <rcode fig.width="2" fig.height="1">
 circle <- circleGrob(gp=gpar(col=NA, fill=2))
@@ -369,7 +372,8 @@ grid.draw(alphaMask)
     test image is opaque wherever the red circle is drawn.
     Only the parts of the semitransparent border that stick out past
     the red circle result in a semitransparent test image.
-    In essence, it is difficult to <em>reduce</em> the transparency 
+    In essence, the proble is that 
+    it is difficult to <em>reduce</em> the transparency 
     of regions of the mask by <em>adding</em> more drawing.    
   </p>
   <rcode fig.width="2" fig.height="1">
@@ -385,7 +389,58 @@ grid.group(testGrob)
     about new solutions to graphical problems.
   </p>
   <p>
-    For example, we have just seen that it is not straightforward to
+    For example, the <code>pdf()</code> device does not support
+    many compositing operators, such as the "clear" operator.
+    The following code shows an example of the "clear" operator, 
+    on a graphics device
+    based on the Cairo graphics library (<a href="#cairo"/>).
+    Here we are drawing a circle on top of a rectangle using
+    the "clear" operator, so the circle takes a "bite" out of the 
+    bottom-right corner of the rectangle.
+  </p>
+  <rcode fig.width="2" fig.height="2">
+grid.group(circleGrob(2/3, 1/3, r=.3, gp=gpar(fill="black")),
+           "clear",
+           rectGrob(1/3, 2/3, .5, .5, 
+                    gp=gpar(col=darken(4, .5), lwd=10, fill=4)))
+  </rcode>
+  <p>
+    The <code>pdf()</code> device does not produce the correct result
+    from the code above (because it does not support the "clear" operator).
+    However, it is easy to get the same result using a luminance mask.
+  </p>
+  <p>
+    For example, the code below creates 
+    a mask that is white everywhere with a black circle drawn in the
+    bottom-right corner.
+  </p>
+  <rcode fig.width="2" fig.height="2">
+grob <- gTree(children=gList(rectGrob(gp=gpar(col=NA, fill="white")),
+                             circleGrob(2/3, 1/3, r=.3, 
+                                        gp=gpar(fill="black"))))
+grid.draw(grob)
+  </rcode>
+  <p>
+    If we push a viewport with that mask and draw the blue rectangle,
+    the mask takes a "bite" out of the bottom-right corner of the
+    rectangle, giving the same result as the "clear" operator.
+  </p>
+  <rcode fig.keep="none" results="hide">
+pdf("clear-mask.pdf", width=2, height=2)
+pushViewport(viewport(mask=as.mask(grob, "luminance")))
+grid.rect(1/3, 2/3, .5, .5, gp=gpar(col=darken(4, .5), lwd=10, fill=4))
+dev.off()
+  </rcode>
+  <!-- NOTE that the slight discoloration in this PNG appears to be due to the 
+       pdftoppm conversion;  the PDF looks right -->
+  <rcode echo="FALSE">
+system("pdftoppm -png -rx 96 -ry 96 clear-mask.pdf > clear-mask.png")
+  </rcode>
+  <p>
+    <img class="plot" src="clear-mask.png"/>
+  </p>  
+  <p>
+    As another example, we have just seen that it is not straightforward to
     produce an alpha mask that corresponds to a relatively straightforward
     luminance mask.  Because luminance masks are only available on
     the <code>pdf()</code> device, this means that 
@@ -439,8 +494,7 @@ grid.group(testGrob)
     The major limitation of luminance masks in R graphics
     is that they are only 
     supported on the <code>pdf()</code> graphics device so far.
-    Graphics devices based on the Cairo graphics library 
-    (<a href="#cairo"/>)
+    Cairo-based graphics devices
     will ignore luminance masks (with a warning).
     Other graphics devices within 'grDevices' will just silently
     ignore masks altogether.
@@ -457,7 +511,7 @@ grid.group(testGrob)
   </p>
   <p>
     In time, it may be that the 'ggplot2'
-    package (<a href="#pkg:ggplot2"/>) provides a way to make use of masks;
+    package (<a href="#pkg:ggplot2"/>) will provide a way to make use of masks;
     in the meantime, the 'gggrid' package (<a href="#pkg:gggrid"/>) provides
     a simple interface for adding 'grid' output to a 'ggplot2' plot.
   </p>
